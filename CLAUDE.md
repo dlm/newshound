@@ -26,12 +26,19 @@ for the current backlog rather than this file.
   simpler task - this is where a small/cheap/local model belongs.
 - Both go through **LiteLLM** so the provider is swappable via env var, not
   code: `EXTRACTION_LLM_MODEL` / `SCORING_LLM_MODEL`.
-- Scoring will eventually point at **Jev** (a model from TypesafeAI) served
-  via Ollama on a Mac on the home network - but that Mac isn't always on.
-  Design for this now, don't implement it yet: `SCORING_LLM_MODEL` (primary)
-  + `SCORING_LLM_FALLBACK_MODEL` (a reachable cloud model). On a connection
-  error to the primary, log a warning and fall back rather than failing the
-  run. Today, both extraction and scoring point at ordinary cloud models.
+- `SCORING_LLM_MODEL` targets **Jev** (a recent model from TypesafeAI).
+  Correction to an earlier assumption: Jev is a hosted web model, not
+  something served locally via Ollama on a home-network Mac - the original
+  scoping conversation got that wrong. Exact connection details (endpoint,
+  auth, how it maps through LiteLLM) aren't known yet and need investigation
+  at integration time (see Linear).
+- `EXTRACTION_LLM_MODEL` targets an **OpenAI** model - no strong requirement
+  beyond provider; exact model id is a config detail, swappable via env var.
+- No `SCORING_LLM_FALLBACK_MODEL` for now. A fallback is still a reasonable
+  idea (resilience against a Jev API outage, not "the Mac is off" as
+  originally reasoned), but adding one later is expected to be a small,
+  isolated change - another env var plus a try/except around the LiteLLM
+  call - so it's deferred rather than designed for pre-emptively.
 
 ### Single Deployment, not a CronJob (for now)
 
