@@ -6,11 +6,14 @@ deduplicates, and serves the result as an RSS feed from a homelab k3s
 cluster.
 
 This file is the living record of what's decided and why. Update it as
-decisions change; don't let it drift from reality.
+decisions change; don't let it drift from reality. Keep entries terse - the
+durable decision plus the minimal why, with a Linear issue reference for
+full resolution detail. Don't duplicate a ticket's rationale here.
 
 ## Status
 
-Scaffolding only. No pipeline/server code written yet. Task tracking lives
+Scaffolding plus initial data models and storage (DAV-38). No extraction,
+scoring, scraping, or server code yet. Task tracking lives
 in Linear now (see Open section below) - check the
 [Newshound project](https://linear.app/dmillman/project/newshound-4d9ece1be879)
 for the current backlog rather than this file.
@@ -26,19 +29,10 @@ for the current backlog rather than this file.
   simpler task - this is where a small/cheap/local model belongs.
 - Both go through **LiteLLM** so the provider is swappable via env var, not
   code: `EXTRACTION_LLM_MODEL` / `SCORING_LLM_MODEL`.
-- `SCORING_LLM_MODEL` targets **Jev** (a recent model from TypesafeAI).
-  Correction to an earlier assumption: Jev is a hosted web model, not
-  something served locally via Ollama on a home-network Mac - the original
-  scoping conversation got that wrong. Exact connection details (endpoint,
-  auth, how it maps through LiteLLM) aren't known yet and need investigation
-  at integration time (see Linear).
-- `EXTRACTION_LLM_MODEL` targets an **OpenAI** model - no strong requirement
-  beyond provider; exact model id is a config detail, swappable via env var.
-- No `SCORING_LLM_FALLBACK_MODEL` for now. A fallback is still a reasonable
-  idea (resilience against a Jev API outage, not "the Mac is off" as
-  originally reasoned), but adding one later is expected to be a small,
-  isolated change - another env var plus a try/except around the LiteLLM
-  call - so it's deferred rather than designed for pre-emptively.
+- `EXTRACTION_LLM_MODEL` -> OpenAI. `SCORING_LLM_MODEL` -> Jev (TypesafeAI),
+  a hosted web model, not local Ollama as originally assumed here.
+  Connection details TBD (DAV-47). No `SCORING_LLM_FALLBACK_MODEL` for now -
+  deferred, not designed for pre-emptively (DAV-42).
 
 ### Single Deployment, not a CronJob (for now)
 
@@ -132,18 +126,10 @@ contents don't change either way.
   git, so GitHub interop works via `jj git push`. jj doesn't auto-advance a
   git branch on commit - the `main` bookmark has to be moved explicitly as
   work lands (`jj bookmark set main -r <rev>`).
-- **Guarding `main`**: no git hook. Confirmed (DAV-43) that `jj git push`
-  bypasses `core.hooksPath` entirely - jj writes refs directly instead of
-  shelling out to `git`, so a client-side hook never fires on this repo's
-  primary push path. Rather than patch around that (e.g. a `just push`
-  wrapper), decided it's the wrong trust boundary on principle: a
-  client-side check only ever guards the client that's configured to run
-  it, and silently doesn't for any other tool (another VCS frontend, a
-  future agent, etc.). Removed `.githooks/` entirely rather than leave a
-  hook that looks like a safeguard but isn't. For now, `just pre-pr` before
-  pushing is a **convention, not an enforced guard** - the real fix is
-  CI + branch protection on `main` once there's a GitHub remote (DAV-44);
-  that's getting close to worth doing but isn't yet.
+- **Guarding `main`**: no git hook - `jj git push` bypasses `core.hooksPath`
+  entirely (DAV-43), so `.githooks/` was removed. `just pre-pr` before
+  pushing is convention, not an enforced guard; real fix is CI + branch
+  protection on `main` once there's a GitHub remote (DAV-44).
 - **Issue tracking**: Linear, matching the user's existing workflow on
   coach-loop. Newshound is a project (not a separate team) under the same
   `DAV` team coach-loop uses - in Linear, issue identifiers are keyed by
