@@ -131,8 +131,19 @@ contents don't change either way.
 - **VCS**: [Jujutsu (`jj`)](https://github.com/jj-vcs/jj), colocated with
   git, so GitHub interop works via `jj git push`. jj doesn't auto-advance a
   git branch on commit - the `main` bookmark has to be moved explicitly as
-  work lands (`jj bookmark set main -r <rev>`). The pre-push hook question
-  below is the one open item here.
+  work lands (`jj bookmark set main -r <rev>`).
+- **Guarding `main`**: no git hook. Confirmed (DAV-43) that `jj git push`
+  bypasses `core.hooksPath` entirely - jj writes refs directly instead of
+  shelling out to `git`, so a client-side hook never fires on this repo's
+  primary push path. Rather than patch around that (e.g. a `just push`
+  wrapper), decided it's the wrong trust boundary on principle: a
+  client-side check only ever guards the client that's configured to run
+  it, and silently doesn't for any other tool (another VCS frontend, a
+  future agent, etc.). Removed `.githooks/` entirely rather than leave a
+  hook that looks like a safeguard but isn't. For now, `just pre-pr` before
+  pushing is a **convention, not an enforced guard** - the real fix is
+  CI + branch protection on `main` once there's a GitHub remote (DAV-44);
+  that's getting close to worth doing but isn't yet.
 - **Issue tracking**: Linear, matching the user's existing workflow on
   coach-loop. Newshound is a project (not a separate team) under the same
   `DAV` team coach-loop uses - in Linear, issue identifiers are keyed by

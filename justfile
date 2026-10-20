@@ -3,7 +3,10 @@
 chose-a-command:
 	just --choose
 
-# run before opening a PR: everything that must be green, offline and free
+# run before every push/PR: everything that must be green, offline and free
+# convention, not enforced by a hook - git hooks don't fire for `jj git push`
+# (this repo's primary push path), so this is on you until CI/branch
+# protection on main exists (see CLAUDE.md)
 pre-pr: check test
 
 # --- test: is the code correct? offline, free, run constantly ---
@@ -67,10 +70,5 @@ fix:
 
 # --- dev: environment ---
 
-dev-setup: dev-hooks
+dev-setup:
     uv sync
-
-# point git at .githooks/ - pre-push verifies main before it leaves your machine
-dev-hooks:
-    git config core.hooksPath .githooks
-    @echo "hooks installed (pre-push guards main; --no-verify bypasses)"
