@@ -1,0 +1,13 @@
+.env
+.venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+.direnv/
+
+# local dev scratch mirroring the PVC-mounted /app/data in the cluster
+# (session_state.json, feed.db, feed.xml)
+data/

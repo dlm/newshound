@@ -1,0 +1,41 @@
+#!/usr/bin/env bash
+# Block pushes to main unless `just pre-pr` is green.
+#
+# Scoped to main on purpose: WIP pushes to feature branches are untouched.
+# Bypass with --no-verify when you mean it.
+#
+# NOTE: this repo's primary VCS is jj (colocated with git). It is not yet
+# confirmed whether `jj git push` invokes git's pre-push hook the way a
+# plain `git push` does - verify before trusting this as your only guard
+# on main.
+
+set -uo pipefail
+
+protected="refs/heads/main"
+pushing_to_main=false
+
+# stdin: <local ref> <local sha> <remote ref> <remote sha>
+while read -r _local_ref local_sha remote_ref _remote_sha; do
+    [ "$remote_ref" = "$protected" ] || continue
+    # all-zero local sha means a branch deletion; nothing to verify
+    case "$local_sha" in *[!0]*) pushing_to_main=true ;; esac
+done
+
+$pushing_to_main || exit 0
+
+echo "pre-push: verifying main with 'just pre-pr'..."
+
+if ! command -v just >/dev/null 2>&1; then
+    echo "pre-push: 'just' not found - are you in the nix dev shell?" >&2
+    echo "pre-push: run 'nix develop' or push with --no-verify." >&2
+    exit 1
+fi
+
+if ! just pre-pr; then
+    echo >&2
+    echo "pre-push: BLOCKED - 'just pre-pr' failed." >&2
+    echo "pre-push: fix it, or push with --no-verify if you mean it." >&2
+    exit 1
+fi
+
+echo "pre-push: green."
