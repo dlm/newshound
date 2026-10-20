@@ -42,15 +42,15 @@ check-lint:
     ruff check src tests
     ruff format --check src tests
 
-# every TODO must reference a Linear card: TODO(NH-N)
-# NH is provisional - the newshound Linear project isn't created yet
+# every TODO must reference a Linear card: TODO(DAV-N)
+# newshound is a project under the DAV team, same as coach-loop - no separate prefix
 check-todos:
     #!/usr/bin/env bash
     set -euo pipefail
     if bare=$(grep -rn --include='*.py' \
         -E '(TODO|FIXME|XXX|HACK)' src tests 2>/dev/null \
-        | grep -vE '(TODO|FIXME|XXX|HACK)\(NH-[0-9]+\)' || true); [ -n "$bare" ]; then
-        echo "TODOs must reference a Linear card, e.g. TODO(NH-8):"
+        | grep -vE '(TODO|FIXME|XXX|HACK)\(DAV-[0-9]+\)' || true); [ -n "$bare" ]; then
+        echo "TODOs must reference a Linear card, e.g. TODO(DAV-8):"
         echo "$bare"
         exit 1
     fi

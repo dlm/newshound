@@ -10,8 +10,10 @@ decisions change; don't let it drift from reality.
 
 ## Status
 
-Scaffolding only. No pipeline/server code written yet. Next step: start on
-the data models (`Article` / `ArticleList`) and the storage layer.
+Scaffolding only. No pipeline/server code written yet. Task tracking lives
+in Linear now (see Open section below) - check the
+[Newshound project](https://linear.app/dmillman/project/newshound-4d9ece1be879)
+for the current backlog rather than this file.
 
 ## Architecture decisions
 
@@ -125,9 +127,10 @@ contents don't change either way.
   work lands (`jj bookmark set main -r <rev>`). The pre-push hook question
   below is the one open item here.
 - **Issue tracking**: Linear, matching the user's existing workflow on
-  coach-loop (`TODO(DAV-N)` there). `just check-todos` enforces
-  `TODO(NH-N)` / `FIXME(NH-N)` in `src` and `tests` - prefix is provisional,
-  see Open section.
+  coach-loop. Newshound is a project (not a separate team) under the same
+  `DAV` team coach-loop uses - in Linear, issue identifiers are keyed by
+  team, not project, so there's no separate `NH` prefix. `just check-todos`
+  enforces `TODO(DAV-N)` / `FIXME(DAV-N)` in `src` and `tests`.
 - **License**: MIT, copyright holder `dlm` (matches the convention used in
   other repos under `~/repos/dlm`).
 
@@ -157,21 +160,8 @@ Not yet created (future steps): `Dockerfile`, `k8s/` manifests,
 
 ## Open / not yet decided
 
-- The actual 10 target site URLs - placeholders for now, added as they're
-  confirmed.
-- `interest_profile.txt` format - starting as free-form prose; the user
-  expects to refine this over time rather than get it right up front.
-- Which sites (if any) need the auth flow, beyond the generic mechanism
-  existing for any that do.
-- Final LLM provider/model choices for extraction and scoring (LiteLLM makes
-  this a config change, not an architecture one).
-- Linear project creation + confirming the `NH` prefix.
-- Whether `jj git push` triggers `.githooks/pre-push` the way a plain `git
-  push` does - confirm before relying on it to guard pushes to `main`.
-- When to create the GitHub remote and push (not created yet - local-only
-  until there's something worth pushing, a deliberate choice).
-- DockerHub username / image naming for the k8s manifests.
-- RWX storage migration (e.g. Longhorn), if/when the cluster goes
-  multi-node - would remove the `local-path` node-pinning concern, and
-  since cluster topology is already getting touched then, that's the
-  natural moment to add it.
+Tracked as issues in the
+[Newshound Linear project](https://linear.app/dmillman/project/newshound-4d9ece1be879)
+(DAV-38 through DAV-46 as of 2026-10-20) rather than enumerated here - this
+file stays the record of decisions *made* and why; Linear tracks what's
+still open.
