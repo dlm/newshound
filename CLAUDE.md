@@ -5,17 +5,13 @@ an LLM, scores them against a personal interest profile with a second LLM,
 deduplicates, and serves the result as an RSS feed from a homelab k3s
 cluster.
 
-This file is the living record of what's decided and why. It replaced an
-initial all-in-one spec prompt that asked for everything (code, Dockerfile,
-k8s manifests) in one shot - we deliberately slowed down and are building
-this step by step instead. Update this file as decisions change; don't let
-it drift from reality.
+This file is the living record of what's decided and why. Update it as
+decisions change; don't let it drift from reality.
 
 ## Status
 
-Scaffolding only. No pipeline/server code written yet. Next step after this
-scaffold is agreed: start on the data models (`Article` / `ArticleList`) and
-the storage layer.
+Scaffolding only. No pipeline/server code written yet. Next step: start on
+the data models (`Article` / `ArticleList`) and the storage layer.
 
 ## Architecture decisions
 
@@ -27,11 +23,11 @@ the storage layer.
 - **Scoring LLM**: `(summary, interest_profile.txt)` -> integer 1-10. A much
   simpler task - this is where a small/cheap/local model belongs.
 - Both go through **LiteLLM** so the provider is swappable via env var, not
-  code. `EXTRACTION_LLM_MODEL` / `SCORING_LLM_MODEL`.
+  code: `EXTRACTION_LLM_MODEL` / `SCORING_LLM_MODEL`.
 - Scoring will eventually point at **Jev** (a model from TypesafeAI) served
   via Ollama on a Mac on the home network - but that Mac isn't always on.
   Design for this now, don't implement it yet: `SCORING_LLM_MODEL` (primary)
-  +`SCORING_LLM_FALLBACK_MODEL` (a reachable cloud model). On a connection
+  + `SCORING_LLM_FALLBACK_MODEL` (a reachable cloud model). On a connection
   error to the primary, log a warning and fall back rather than failing the
   run. Today, both extraction and scoring point at ordinary cloud models.
 
@@ -40,10 +36,10 @@ the storage layer.
 Considered: CronJob (scrape pipeline) + separate always-on Deployment
 (serving `feed.xml`), sharing one PVC. Rejected for now because k3s'
 `local-path` StorageClass binds a PVC to whichever node first claims it -
-fine for one pod type, but with two workload types (CronJob pods +
-Deployment pod) sharing a PVC, both get pinned to that node, and the user is
-adding 1-2 more nodes to the cluster within about a month. Didn't want to
-build in a single-node assumption right before that changes.
+fine for one pod type, but with two workload types sharing a PVC, both get
+pinned to that node, and the cluster is expanding to 2-3 nodes within about
+a month of 2026-10-20. Didn't want to build in a single-node assumption
+right before that changes.
 
 Chosen instead: **one long-running Deployment** that both serves `feed.xml`
 and runs the pipeline - an internal scheduler thread on a ~24h cadence, plus
@@ -90,9 +86,7 @@ contents don't change either way.
 - Homelab k3s cluster, currently single-node, expanding to 2-3 nodes within
   about a month of 2026-10-20 (i.e. roughly mid-to-late November 2026).
 - PVC uses k3s' default `local-path` StorageClass for now. Revisit once
-  multi-node - RWX storage (e.g. Longhorn) would remove the node-pinning
-  concern, and since the user will be touching cluster topology anyway, that
-  might be the natural moment to add it. Not a blocker for v1.
+  multi-node (see RWX storage in Open section below) - not a blocker for v1.
 - `Secret` holds LLM API key(s) (via whatever env vars LiteLLM / the chosen
   providers need). Site login credentials are used only by the
   interactively-run `setup_auth.py`, not by the running pod - so they likely
@@ -102,20 +96,14 @@ contents don't change either way.
   Crawl4AI/Playwright).
 - `Service` + Traefik-compatible `Ingress` routing some `*.local` hostname to
   the service (exact hostname not yet chosen).
-- Base image: `mcr.microsoft.com/playwright/python` (the original spec said
-  `://microsoft.com`, which isn't a real image reference - this is the real
-  Playwright-maintained Python image).
-- DockerHub username / final image tag: not yet decided.
+- Base image: `mcr.microsoft.com/playwright/python`.
 
 ### Tooling / project hygiene
 
 - **Language/deps**: Python 3.13, managed with `uv` (`pyproject.toml` +
-  `uv.lock`, `hatchling` build backend).
-  - **Gotcha hit during setup**: `uv init`'s default `uv_build` backend ships
-    a prebuilt, dynamically-linked `uv-build` binary that NixOS can't run
-    without FHS/`nix-ld` shims ("NixOS cannot run dynamically linked
-    executables..."). Switched to `hatchling` (pure Python backend, matches
-    coach-loop) to sidestep it entirely rather than patch the environment.
+  `uv.lock`), `hatchling` build backend - not the `uv init` default
+  (`uv_build`), whose prebuilt binary won't run on NixOS without FHS/
+  `nix-ld` shims.
 - **Lint/format**: `ruff`.
 - **Task runner**: `just` (see `justfile`). Modeled closely on a sibling
   project, `~/repos/dlm/coach-loop`, which has the same shape of problem
@@ -131,30 +119,15 @@ contents don't change either way.
     `addopts = "-m 'not live'"`, run deliberately via `just test-live`.
 - **Dev shell**: `flake.nix` (flake-utils, `eachDefaultSystem`), provides
   `git`, `jujutsu`, `just`, `python313`, `uv`, `ruff`.
-  - **Gotcha hit during setup**: `nixpkgs#jj` is a *different* package (a
-    JSON stream editor also named `jj`) - the Jujutsu VCS package is
-    `nixpkgs#jujutsu`. Don't repeat that mistake when touching the flake.
-- **VCS**: [Jujutsu (`jj`)](https://github.com/jj-vcs/jj), colocated with git
-  (`jj git init --colocate`) so GitHub interop still works via
-  `jj git push`. GitHub remote **not created yet** - local-only until
-  there's something worth pushing (deliberate choice, not an oversight).
-  - **Unverified**: whether `jj git push` triggers `.githooks/pre-push` the
-    way a plain `git push` does. The hook (copied from coach-loop, see
-    `.githooks/pre-push`) guards pushes to `main` behind `just pre-pr`.
-    Confirm this actually fires before relying on it.
-  - **Gotcha hit during setup**: `jj` doesn't automatically maintain a git
-    branch - after committing, `git branch` showed `(no branch)` until a
-    `main` bookmark was created (`jj bookmark create main -r <rev>`). Keep
-    the `main` bookmark pointed at the right commit as work lands (`jj
-    bookmark set main -r <rev>`, or `jj bookmark move main --to <rev>`
-    depending on jj version) - it won't move on its own the way a git branch
-    does on commit.
+- **VCS**: [Jujutsu (`jj`)](https://github.com/jj-vcs/jj), colocated with
+  git, so GitHub interop works via `jj git push`. jj doesn't auto-advance a
+  git branch on commit - the `main` bookmark has to be moved explicitly as
+  work lands (`jj bookmark set main -r <rev>`). The pre-push hook question
+  below is the one open item here.
 - **Issue tracking**: Linear, matching the user's existing workflow on
-  coach-loop (`TODO(DAV-N)` there). This project's prefix is **`NH`**,
-  provisionally - the actual Linear project/team for newshound has not been
-  created yet. `just check-todos` already enforces `TODO(NH-N)` /
-  `FIXME(NH-N)` / etc. in `src` and `tests`; update the prefix here and in
-  the justfile if it ends up different once the Linear project exists.
+  coach-loop (`TODO(DAV-N)` there). `just check-todos` enforces
+  `TODO(NH-N)` / `FIXME(NH-N)` in `src` and `tests` - prefix is provisional,
+  see Open section.
 - **License**: MIT, copyright holder `dlm` (matches the convention used in
   other repos under `~/repos/dlm`).
 
@@ -193,6 +166,12 @@ Not yet created (future steps): `Dockerfile`, `k8s/` manifests,
 - Final LLM provider/model choices for extraction and scoring (LiteLLM makes
   this a config change, not an architecture one).
 - Linear project creation + confirming the `NH` prefix.
-- When to create the GitHub remote and push.
+- Whether `jj git push` triggers `.githooks/pre-push` the way a plain `git
+  push` does - confirm before relying on it to guard pushes to `main`.
+- When to create the GitHub remote and push (not created yet - local-only
+  until there's something worth pushing, a deliberate choice).
 - DockerHub username / image naming for the k8s manifests.
-- RWX storage migration, if/when the cluster goes multi-node.
+- RWX storage migration (e.g. Longhorn), if/when the cluster goes
+  multi-node - would remove the `local-path` node-pinning concern, and
+  since cluster topology is already getting touched then, that's the
+  natural moment to add it.

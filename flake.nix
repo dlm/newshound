@@ -2,7 +2,7 @@
   description = "newshound - autonomous agent that scrapes, scores, and serves a personal RSS feed";
 
   inputs = {
-    nixpkgs.url = "github:nixos/nixpkgs?ref=nixos-25.05";
+    nixpkgs.url = "github:nixos/nixpkgs?ref=nixos-26.05";
     flake-utils.url = "github:numtide/flake-utils";
   };
 
@@ -22,7 +22,7 @@
         devShells.default = pkgs.mkShell {
           packages = with pkgs; [
             git
-            jujutsu # nixpkgs#jj is a *different* package (a JSON stream editor) - use jujutsu
+            jujutsu
             just
 
             python313
